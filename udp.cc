@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstring>
 #include <endian.h>
+#include <ios>
+#include <iostream>
 #include <memory>
 #include <netinet/in.h>
 #include <stdexcept>
@@ -49,7 +51,7 @@ uint16_t UDP::calculateChecksum(const UDPPacket &udpPacket) {
 }
 
 UDP::UDP() {
-  sockfd = socket(AF_INET, SOCK_RAW, 0);
+  sockfd = socket(AF_INET, SOCK_DGRAM, 0);
   if (sockfd < 0) {
     throw std::runtime_error("Failed to create socket");
   }
@@ -82,7 +84,7 @@ void UDP::sendTo(const std::unique_ptr<std::vector<char>> data,
   udpPacket.pseudo_header.zeros = 0;
   udpPacket.pseudo_header.protocol = 17;
   udpPacket.pseudo_header.udpLength = udpPacket.udp_header.length;
-
+  udpPacket.payload = std::make_unique<std::vector<char>>(*data);
   // calculate CheckSum
   udpPacket.udp_header.checksum = calculateChecksum(udpPacket);
 
@@ -99,6 +101,7 @@ void UDP::sendTo(const std::unique_ptr<std::vector<char>> data,
 
 size_t UDP::receiveFrom(char *buffer, size_t maxLength, char *sourceIP,
                         uint16_t *sourcePort) {
+
   struct sockaddr_in sourceAddr;
   socklen_t addrLen = sizeof(sourceAddr);
 
@@ -111,20 +114,33 @@ size_t UDP::receiveFrom(char *buffer, size_t maxLength, char *sourceIP,
   if (received < 0) {
     throw std::runtime_error("Failed to receive data");
   }
+  UDPPacket::UDPHeader header;
+  memcpy(&header, packet, sizeof(UDPPacket::UDPHeader));
+
+  // Create UDP packet for checksum verification
+  UDPPacket udpPacket;
   // Extract UDP Packet
-  UDPPacket *udpPacket = reinterpret_cast<UDPPacket *>(packet);
+
+  udpPacket.udp_header = header;
+  udpPacket.pseudo_header.src_ip = sourceAddr.sin_addr.s_addr;
+  udpPacket.pseudo_header.dest_ip = addr.sin_addr.s_addr;
+  udpPacket.pseudo_header.zeros = 0;
+  udpPacket.pseudo_header.protocol = 17;
+  udpPacket.pseudo_header.udpLength = header.length;
+  size_t dataLength = received - sizeof(UDPPacket::UDPHeader);
+  udpPacket.payload = std::make_unique<std::vector<char>>(
+      packet + sizeof(UDPPacket::UDPHeader),
+      packet + sizeof(UDPPacket::UDPHeader) + dataLength);
 
   // Verify checksum
-  uint16_t receivedChecksum = ntohs(udpPacket->udp_header.checksum);
-  udpPacket->udp_header.checksum = 0;
-  uint16_t calculatedChecksum = calculateChecksum(*udpPacket);
-
+  uint16_t receivedChecksum = udpPacket.udp_header.checksum;
+  udpPacket.udp_header.checksum = 0;
+  uint16_t calculatedChecksum = calculateChecksum(udpPacket);
   if (receivedChecksum != calculatedChecksum) {
     throw std::runtime_error("Checksum verification failed");
   }
 
   // Copy data to buffer
-  size_t dataLength = received - sizeof(UDPPacket::UDPHeader);
   if (dataLength > maxLength) {
     throw std::runtime_error("Buffer too small");
   }

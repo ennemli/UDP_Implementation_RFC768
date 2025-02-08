@@ -3,6 +3,7 @@
 #include "sys/socket.h"
 #include "unistd.h"
 #include <cstdint>
+#include <memory>
 #include <netinet/in.h>
 #include <stdexcept>
 #include <string_view>
@@ -24,7 +25,7 @@ struct UDPPacket {
     uint16_t lenght;
     uint16_t checksum;
   } udp_header;
-  std::vector<uint8_t> payload;
+  std::unique_ptr<std::vector<char>> payload;
 };
 
 class UDP {

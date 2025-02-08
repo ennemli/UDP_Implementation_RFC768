@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <cstring>
 #include <netinet/in.h>
-uint16_t UDP::calculate_checksum(const UDPPacket &udpPacket) {
+uint16_t calculate_checksum(const UDPPacket &udpPacket) {
   size_t total_size = sizeof(UDPPacket::PseudoHeader) +
-                      sizeof(UDPPacket::UDPHeader) + udpPacket.payload.size();
+                      sizeof(UDPPacket::UDPHeader) + udpPacket.payload->size();
   if (total_size % 2)
     total_size++;
 
@@ -26,8 +26,8 @@ uint16_t UDP::calculate_checksum(const UDPPacket &udpPacket) {
   offset += sizeof(UDPPacket::UDPHeader);
 
   // Copy Data
-  memcpy(buffer.data() + offset, udpPacket.payload.data(),
-         udpPacket.payload.size());
+  memcpy(buffer.data() + offset, udpPacket.payload->data(),
+         udpPacket.payload->size());
 
   // calculate ChceckSum
   uint32_t sum = 0;

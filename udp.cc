@@ -49,9 +49,9 @@ uint16_t UDP::calculateChecksum(const UDPPacket &udpPacket) {
 }
 
 UDP::UDP() {
-  sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
+  sockfd = socket(AF_INET, SOCK_RAW, 0);
   if (sockfd < 0) {
-    throw std::runtime_error("Failed to created socket");
+    throw std::runtime_error("Failed to create socket");
   }
 }
 void UDP::bind(const char *ip, uint16_t port) {
@@ -74,25 +74,24 @@ void UDP::sendTo(const std::unique_ptr<std::vector<char>> data,
   UDPPacket udpPacket;
   udpPacket.udp_header.sourcePort = addr.sin_port;
   udpPacket.udp_header.destPort = destAddr.sin_port;
-  udpPacket.udp_header.lenght = htons(packetSize);
+  udpPacket.udp_header.length = htons(packetSize);
   udpPacket.udp_header.checksum = 0;
 
   udpPacket.pseudo_header.src_ip = addr.sin_addr.s_addr;
   udpPacket.pseudo_header.dest_ip = destAddr.sin_addr.s_addr;
   udpPacket.pseudo_header.zeros = 0;
   udpPacket.pseudo_header.protocol = 17;
-  udpPacket.pseudo_header.udpLength = udpPacket.udp_header.lenght;
+  udpPacket.pseudo_header.udpLength = udpPacket.udp_header.length;
 
   // calculate CheckSum
   udpPacket.udp_header.checksum = calculateChecksum(udpPacket);
 
   // Combine header and data in one packet
-  std::vector<char> packet;
+  char packet[65535];
+  memcpy(packet, &udpPacket.udp_header, sizeof(UDPPacket::UDPHeader));
+  memcpy(packet + sizeof(UDPPacket::UDPHeader), data->data(), data->size());
 
-  memcpy(packet.data(), &udpPacket.udp_header, sizeof(UDPPacket::UDPHeader));
-  memcpy(packet.data() + sizeof(UDPPacket::UDPHeader), data->data(),
-         data->size());
-  if (sendto(sockfd, packet.data(), packetSize, 0, (struct sockaddr *)&destAddr,
+  if (sendto(sockfd, packet, packetSize, 0, (struct sockaddr *)&destAddr,
              sizeof(destAddr)) < 0) {
     throw std::runtime_error("Failed to send data");
   }
@@ -104,7 +103,7 @@ size_t UDP::receiveFrom(char *buffer, size_t maxLength, char *sourceIP,
   socklen_t addrLen = sizeof(sourceAddr);
 
   // Receive packet
-  char *packet[65535];
+  char packet[65535];
   ssize_t received = recvfrom(sockfd, packet, sizeof(packet), 0,
 
                               (struct sockaddr *)&sourceAddr, &addrLen);

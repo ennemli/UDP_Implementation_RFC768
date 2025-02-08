@@ -39,5 +39,7 @@ public:
   void bind(const char *ip, uint16_t port);
   void sendTo(const std::unique_ptr<std::vector<char>>, const char *destIP,
               uint16_t destPort);
+  size_t receiveFrom(char *buffer, size_t maxLength, char *sourceIP,
+                     uint16_t *sourcePort);
 };
 #endif // !UDP_H

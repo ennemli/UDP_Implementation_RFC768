@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <vector>
-uint16_t calculate_checksum(const UDPPacket &udpPacket) {
+uint16_t calculateChecksum(const UDPPacket &udpPacket) {
   size_t total_size = sizeof(UDPPacket::PseudoHeader) +
                       sizeof(UDPPacket::UDPHeader) + udpPacket.payload->size();
   if (total_size % 2)
@@ -84,7 +84,7 @@ void UDP::sendTo(const std::unique_ptr<std::vector<char>> data,
   udpPacket.pseudo_header.udpLength = udpPacket.udp_header.lenght;
 
   // calculate CheckSum
-  udpPacket.udp_header.checksum = calculate_checksum(udpPacket);
+  udpPacket.udp_header.checksum = calculateChecksum(udpPacket);
 
   // Combine header and data in one packet
   std::vector<char> packet;
@@ -104,34 +104,33 @@ size_t UDP::receiveFrom(char *buffer, size_t maxLength, char *sourceIP,
   socklen_t addrLen = sizeof(sourceAddr);
 
   // Receive packet
-  char packet[65535];
+  char *packet[65535];
   ssize_t received = recvfrom(sockfd, packet, sizeof(packet), 0,
+
                               (struct sockaddr *)&sourceAddr, &addrLen);
 
   if (received < 0) {
     throw std::runtime_error("Failed to receive data");
   }
-
-  // Extract UDP header
-  UDPHeader *header = reinterpret_cast<UDPHeader *>(packet);
+  // Extract UDP Packet
+  UDPPacket *udpPacket = reinterpret_cast<UDPPacket *>(packet);
 
   // Verify checksum
-  uint16_t receivedChecksum = ntohs(header->checksum);
-  header->checksum = 0;
-  uint16_t calculatedChecksum = calculateChecksum(
-      *header, packet + sizeof(UDPHeader), received - sizeof(UDPHeader));
+  uint16_t receivedChecksum = ntohs(udpPacket->udp_header.checksum);
+  udpPacket->udp_header.checksum = 0;
+  uint16_t calculatedChecksum = calculateChecksum(*udpPacket);
 
   if (receivedChecksum != calculatedChecksum) {
     throw std::runtime_error("Checksum verification failed");
   }
 
   // Copy data to buffer
-  size_t dataLength = received - sizeof(UDPHeader);
+  size_t dataLength = received - sizeof(UDPPacket::UDPHeader);
   if (dataLength > maxLength) {
     throw std::runtime_error("Buffer too small");
   }
 
-  memcpy(buffer, packet + sizeof(UDPHeader), dataLength);
+  memcpy(buffer, packet + sizeof(UDPPacket::UDPHeader), dataLength);
 
   // Set source information
   strcpy(sourceIP, inet_ntoa(sourceAddr.sin_addr));

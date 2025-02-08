@@ -3,6 +3,10 @@
 #include "sys/socket.h"
 #include "unistd.h"
 #include <cstdint>
+#include <netinet/in.h>
+#include <stdexcept>
+#include <string_view>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <vector>
 
@@ -23,6 +27,14 @@ struct UDPPacket {
   std::vector<uint8_t> payload;
 };
 
-uint16_t calculate_checksum(const UDPPacket &udpPacket);
+class UDP {
+private:
+  int sockfd;
+  struct sockaddr_in addr;
+  uint16_t calculate_checksum(const UDPPacket &udpPacket);
 
+public:
+  UDP();
+  void bind(const char *ip, uint16_t port);
+};
 #endif // !UDP_H

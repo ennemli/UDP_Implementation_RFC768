@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <netinet/in.h>
-uint16_t calculate_checksum(const UDPPacket &udpPacket) {
+uint16_t UDP::calculate_checksum(const UDPPacket &udpPacket) {
   size_t total_size = sizeof(UDPPacket::PseudoHeader) +
                       sizeof(UDPPacket::UDPHeader) + udpPacket.payload.size();
   if (total_size % 2)
@@ -41,4 +41,18 @@ uint16_t calculate_checksum(const UDPPacket &udpPacket) {
     }
   }
   return ~sum & 0xFFFF;
+}
+
+UDP::UDP() {
+  sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
+  if (sockfd) {
+    throw std::runtime_error("Failed to created soocket");
+  }
+}
+void UDP::bind(const char *ip, uint16_t port) {
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(port);
+  if (::bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    throw std::runtime_error("Failed to bind socket");
+  }
 }

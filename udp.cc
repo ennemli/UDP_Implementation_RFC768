@@ -51,7 +51,7 @@ uint16_t calculateChecksum(const UDPPacket &udpPacket) {
 UDP::UDP() {
   sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
   if (sockfd) {
-    throw std::runtime_error("Failed to created soocket");
+    throw std::runtime_error("Failed to created socket");
   }
 }
 void UDP::bind(const char *ip, uint16_t port) {

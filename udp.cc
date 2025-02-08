@@ -3,7 +3,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <endian.h>
+#include <memory>
 #include <netinet/in.h>
+#include <stdexcept>
+#include <sys/socket.h>
+#include <vector>
 uint16_t calculate_checksum(const UDPPacket &udpPacket) {
   size_t total_size = sizeof(UDPPacket::PseudoHeader) +
                       sizeof(UDPPacket::UDPHeader) + udpPacket.payload->size();
@@ -52,7 +57,43 @@ UDP::UDP() {
 void UDP::bind(const char *ip, uint16_t port) {
   addr.sin_family = AF_INET;
   addr.sin_port = htons(port);
+  addr.sin_addr.s_addr = inet_addr(ip);
   if (::bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
     throw std::runtime_error("Failed to bind socket");
+  }
+}
+
+void UDP::sendTo(const std::unique_ptr<std::vector<char>> data,
+                 const char *destIP, uint16_t destPort) {
+  struct sockaddr_in destAddr;
+  destAddr.sin_family = AF_INET;
+  destAddr.sin_port = htons(destPort);
+  destAddr.sin_addr.s_addr = inet_addr(destIP);
+
+  size_t packetSize = sizeof(UDPPacket::UDPHeader) + data->size();
+  UDPPacket udpPacket;
+  udpPacket.udp_header.sourcePort = addr.sin_port;
+  udpPacket.udp_header.destPort = destAddr.sin_port;
+  udpPacket.udp_header.lenght = htons(packetSize);
+  udpPacket.udp_header.checksum = 0;
+
+  udpPacket.pseudo_header.src_ip = addr.sin_addr.s_addr;
+  udpPacket.pseudo_header.dest_ip = destAddr.sin_addr.s_addr;
+  udpPacket.pseudo_header.zeros = 0;
+  udpPacket.pseudo_header.protocol = 17;
+  udpPacket.pseudo_header.udpLength = udpPacket.udp_header.lenght;
+
+  // calculate CheckSum
+  udpPacket.udp_header.checksum = calculate_checksum(udpPacket);
+
+  // Combine header and data in one packet
+  std::vector<char> packet;
+
+  memcpy(packet.data(), &udpPacket.udp_header, sizeof(UDPPacket::UDPHeader));
+  memcpy(packet.data() + sizeof(UDPPacket::UDPHeader), data->data(),
+         data->size());
+  if (sendto(sockfd, packet.data(), packetSize, 0, (struct sockaddr *)&destAddr,
+             sizeof(destAddr)) < 0) {
+    throw std::runtime_error("Failed to send data");
   }
 }

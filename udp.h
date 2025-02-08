@@ -15,7 +15,7 @@ struct UDPPacket {
   struct PseudoHeader {
     uint32_t src_ip;
     uint32_t dest_ip;
-    uint8_t zero;
+    uint8_t zeros;
     uint8_t protocol;
     uint8_t udpLength;
   } pseudo_header;
@@ -38,6 +38,6 @@ public:
   UDP();
   void bind(const char *ip, uint16_t port);
   void sendTo(const std::unique_ptr<std::vector<char>>, const char *destIP,
-              uint16_t *destPort);
+              uint16_t destPort);
 };
 #endif // !UDP_H

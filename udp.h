@@ -41,5 +41,6 @@ public:
               uint16_t destPort);
   size_t receiveFrom(char *buffer, size_t maxLength, char *sourceIP,
                      uint16_t *sourcePort);
+  ~UDP() { close(sockfd); }
 };
 #endif // !UDP_H

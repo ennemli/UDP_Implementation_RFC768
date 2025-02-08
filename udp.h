@@ -32,7 +32,7 @@ class UDP {
 private:
   int sockfd;
   struct sockaddr_in addr;
-  uint16_t calculate_checksum(const UDPPacket &udpPacket);
+  uint16_t calculateChecksum(const UDPPacket &udpPacket);
 
 public:
   UDP();

@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <vector>
-uint16_t calculateChecksum(const UDPPacket &udpPacket) {
+uint16_t UDP::calculateChecksum(const UDPPacket &udpPacket) {
   size_t total_size = sizeof(UDPPacket::PseudoHeader) +
                       sizeof(UDPPacket::UDPHeader) + udpPacket.payload->size();
   if (total_size % 2)
@@ -50,7 +50,7 @@ uint16_t calculateChecksum(const UDPPacket &udpPacket) {
 
 UDP::UDP() {
   sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
-  if (sockfd) {
+  if (sockfd < 0) {
     throw std::runtime_error("Failed to created socket");
   }
 }

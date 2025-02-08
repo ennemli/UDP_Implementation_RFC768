@@ -1,7 +1,0 @@
-client.cc
-server.cc
-*
-!*.cpp
-!*.cc
-!*.h
-!*.hpp

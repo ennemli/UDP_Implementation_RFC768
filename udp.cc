@@ -97,3 +97,45 @@ void UDP::sendTo(const std::unique_ptr<std::vector<char>> data,
     throw std::runtime_error("Failed to send data");
   }
 }
+
+size_t UDP::receiveFrom(char *buffer, size_t maxLength, char *sourceIP,
+                        uint16_t *sourcePort) {
+  struct sockaddr_in sourceAddr;
+  socklen_t addrLen = sizeof(sourceAddr);
+
+  // Receive packet
+  char packet[65535];
+  ssize_t received = recvfrom(sockfd, packet, sizeof(packet), 0,
+                              (struct sockaddr *)&sourceAddr, &addrLen);
+
+  if (received < 0) {
+    throw std::runtime_error("Failed to receive data");
+  }
+
+  // Extract UDP header
+  UDPHeader *header = reinterpret_cast<UDPHeader *>(packet);
+
+  // Verify checksum
+  uint16_t receivedChecksum = ntohs(header->checksum);
+  header->checksum = 0;
+  uint16_t calculatedChecksum = calculateChecksum(
+      *header, packet + sizeof(UDPHeader), received - sizeof(UDPHeader));
+
+  if (receivedChecksum != calculatedChecksum) {
+    throw std::runtime_error("Checksum verification failed");
+  }
+
+  // Copy data to buffer
+  size_t dataLength = received - sizeof(UDPHeader);
+  if (dataLength > maxLength) {
+    throw std::runtime_error("Buffer too small");
+  }
+
+  memcpy(buffer, packet + sizeof(UDPHeader), dataLength);
+
+  // Set source information
+  strcpy(sourceIP, inet_ntoa(sourceAddr.sin_addr));
+  *sourcePort = ntohs(sourceAddr.sin_port);
+
+  return dataLength;
+}
